@@ -101,7 +101,7 @@ const start = async () => {
 
     await createSocketServer(httpServer);
 
-    httpServer.listen(PORT, () => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
     });
   } catch (error) {
