@@ -27,8 +27,8 @@ router.get("/health", (req, res) => {
 
 import authRoutes from "./auth.js";
 import postRoutes from "./posts.js";
-// import likeRoutes from "./likes.js";
-// import retweetRoutes from "./retweets.js";
+import likeRoutes from "./likes.js";
+import retweetRoutes from "./retweets.js";
 // import replyRoutes from "./replies.js";
 // import followRoutes from "./follows.js";
 // import notificationRoutes from "./notifications.js";
@@ -38,8 +38,8 @@ import postRoutes from "./posts.js";
 
 router.use("/auth", authRoutes);
 router.use("/posts", postRoutes);
-// router.use("/likes", likeRoutes);
-// router.use("/retweets", retweetRoutes);
+router.use("/likes", likeRoutes);
+router.use("/retweets", retweetRoutes);
 // router.use("/replies", replyRoutes);
 // router.use("/follows", followRoutes);
 // router.use("/notifications", notificationRoutes);
