@@ -1,17 +1,17 @@
 import prisma from "../lib/prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
+import notificationService from "./notification.service.js";
+import realtimeService from "./realtime.service.js";
 
 /**
  * Toggles a follow relationship between two users.
- * If the follower already follows the target, they unfollow.
- * If they do not follow, they follow.
+ * Creates a notification for the target user when followed.
  *
- * @param {string} followerId - The user clicking follow
- * @param {string} username - The username of the user being followed
+ * @param {string} followerId
+ * @param {string} username
  * @returns {object} - { following: boolean, followerCount: number }
  */
 const toggleFollow = async (followerId, username) => {
-  // Find the target user by username
   const targetUser = await prisma.user.findUnique({
     where: { username },
     select: { id: true },
@@ -21,14 +21,12 @@ const toggleFollow = async (followerId, username) => {
     throw new AppError("User not found", 404);
   }
 
-  // Prevent a user from following themselves
   if (targetUser.id === followerId) {
     throw new AppError("You cannot follow yourself", 400);
   }
 
   const followingId = targetUser.id;
 
-  // Check if the follow relationship already exists
   const existingFollow = await prisma.follow.findUnique({
     where: {
       followerId_followingId: { followerId, followingId },
@@ -38,7 +36,6 @@ const toggleFollow = async (followerId, username) => {
   let following;
 
   if (existingFollow) {
-    // Unfollow - remove the follow record
     await prisma.follow.delete({
       where: {
         followerId_followingId: { followerId, followingId },
@@ -46,14 +43,23 @@ const toggleFollow = async (followerId, username) => {
     });
     following = false;
   } else {
-    // Follow - create the follow record
     await prisma.follow.create({
       data: { followerId, followingId },
     });
     following = true;
+
+    // Create a notification for the user being followed
+    const notification = await notificationService.createNotification({
+      type: "FOLLOW",
+      recipientId: followingId,
+      senderId: followerId,
+    });
+
+    if (notification) {
+      await realtimeService.broadcastNotification(notification);
+    }
   }
 
-  // Get the updated follower count for the target user
   const followerCount = await prisma.follow.count({
     where: { followingId },
   });
@@ -63,10 +69,9 @@ const toggleFollow = async (followerId, username) => {
 
 /**
  * Returns a paginated list of followers for a user.
- * These are users who follow the given username.
  *
  * @param {string} username
- * @param {string|null} viewerId - Current logged in user ID for isFollowing flag
+ * @param {string|null} viewerId
  * @param {object} options - { cursor?, limit? }
  * @returns {object} - { users, nextCursor }
  */
@@ -112,7 +117,6 @@ const getFollowers = async (username, viewerId, { cursor, limit = 20 } = {}) => 
   const trimmed = hasNextPage ? follows.slice(0, take) : follows;
   const nextCursor = hasNextPage ? trimmed[trimmed.length - 1].id : null;
 
-  // Attach isFollowing flag for each user in the list
   let followingIds = new Set();
 
   if (viewerId) {
@@ -140,7 +144,7 @@ const getFollowers = async (username, viewerId, { cursor, limit = 20 } = {}) => 
  * Returns a paginated list of users that a given user follows.
  *
  * @param {string} username
- * @param {string|null} viewerId - Current logged in user ID for isFollowing flag
+ * @param {string|null} viewerId
  * @param {object} options - { cursor?, limit? }
  * @returns {object} - { users, nextCursor }
  */
@@ -186,7 +190,6 @@ const getFollowing = async (username, viewerId, { cursor, limit = 20 } = {}) => 
   const trimmed = hasNextPage ? follows.slice(0, take) : follows;
   const nextCursor = hasNextPage ? trimmed[trimmed.length - 1].id : null;
 
-  // Attach isFollowing flag for each user in the list
   let followingIds = new Set();
 
   if (viewerId) {
@@ -212,15 +215,12 @@ const getFollowing = async (username, viewerId, { cursor, limit = 20 } = {}) => 
 
 /**
  * Returns suggested users to follow.
- * Excludes the current user and users they already follow.
- * Orders by follower count descending.
  *
  * @param {string} userId
  * @param {number} limit
  * @returns {array} - Array of users
  */
 const getSuggestedUsers = async (userId, limit = 5) => {
-  // Get IDs of users the current user already follows
   const alreadyFollowing = await prisma.follow.findMany({
     where: { followerId: userId },
     select: { followingId: true },
@@ -231,7 +231,6 @@ const getSuggestedUsers = async (userId, limit = 5) => {
     ...alreadyFollowing.map((f) => f.followingId),
   ];
 
-  // Find users not in the exclude list, ordered by follower count
   const users = await prisma.user.findMany({
     where: {
       id: { notIn: excludeIds },
@@ -255,7 +254,7 @@ const getSuggestedUsers = async (userId, limit = 5) => {
   return users.map((user) => ({
     ...user,
     followerCount: user._count.followers,
-    isFollowing: false, // always false since we excluded already-followed users
+    isFollowing: false,
   }));
 };
 
