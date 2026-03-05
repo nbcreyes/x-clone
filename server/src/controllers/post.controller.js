@@ -1,12 +1,16 @@
 import postService from "../services/post.service.js";
+import realtimeService from "../services/realtime.service.js";
 
 /**
  * POST /api/posts
- * Creates a new post for the authenticated user.
+ * Creates a new post and broadcasts it to all connected clients.
  */
 const createPost = async (req, res, next) => {
   try {
     const post = await postService.createPost(req.user.id, req.body);
+
+    // Broadcast the new post to all connected clients in real time
+    await realtimeService.broadcastNewPost(post);
 
     res.status(201).json({
       success: true,
@@ -21,7 +25,6 @@ const createPost = async (req, res, next) => {
 /**
  * GET /api/posts/feed
  * Returns the paginated main feed.
- * Supports cursor-based pagination via ?cursor=postId&limit=10
  */
 const getFeed = async (req, res, next) => {
   try {
@@ -85,13 +88,16 @@ const getPostById = async (req, res, next) => {
 
 /**
  * DELETE /api/posts/:id
- * Deletes a post. Only the author can delete their own post.
+ * Deletes a post and broadcasts the deletion to all connected clients.
  */
 const deletePost = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     await postService.deletePost(id, req.user.id);
+
+    // Broadcast the deletion so clients can remove it from their feed
+    await realtimeService.broadcastDeletePost(id);
 
     res.json({
       success: true,

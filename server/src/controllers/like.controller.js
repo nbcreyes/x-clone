@@ -1,14 +1,22 @@
 import likeService from "../services/like.service.js";
+import realtimeService from "../services/realtime.service.js";
 
 /**
  * POST /api/likes/:postId
- * Toggles a like on a post.
- * Returns the new like state and updated count.
+ * Toggles a like and broadcasts the update to all connected clients.
  */
 const toggleLike = async (req, res, next) => {
   try {
     const { postId } = req.params;
     const result = await likeService.toggleLike(req.user.id, postId);
+
+    // Broadcast like toggle so all clients update the count in real time
+    await realtimeService.broadcastLikeToggled(
+      postId,
+      req.user.id,
+      result.liked,
+      result.likeCount
+    );
 
     res.json({
       success: true,

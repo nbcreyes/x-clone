@@ -1,14 +1,17 @@
 import replyService from "../services/reply.service.js";
+import realtimeService from "../services/realtime.service.js";
 
 /**
  * POST /api/replies/:postId
- * Creates a reply to a post.
- * Optional parentId in body creates a nested reply.
+ * Creates a reply and broadcasts it to clients viewing the post.
  */
 const createReply = async (req, res, next) => {
   try {
     const { postId } = req.params;
     const reply = await replyService.createReply(req.user.id, postId, req.body);
+
+    // Broadcast to clients currently viewing this post
+    await realtimeService.broadcastNewReply(reply);
 
     res.status(201).json({
       success: true,
@@ -46,7 +49,6 @@ const getRepliesForPost = async (req, res, next) => {
 /**
  * GET /api/replies/:postId/thread
  * Returns the full thread view for a post.
- * Includes the post and all replies with nested replies pre-loaded.
  */
 const getThread = async (req, res, next) => {
   try {

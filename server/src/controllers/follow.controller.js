@@ -1,14 +1,29 @@
 import followService from "../services/follow.service.js";
+import realtimeService from "../services/realtime.service.js";
+import prisma from "../lib/prisma.js";
 
 /**
  * POST /api/follows/:username
- * Toggles a follow on a user.
- * Returns the new follow state and updated follower count.
+ * Toggles a follow and broadcasts the update to the target user.
  */
 const toggleFollow = async (req, res, next) => {
   try {
     const { username } = req.params;
     const result = await followService.toggleFollow(req.user.id, username);
+
+    // Get the target user ID so we can send them the real-time event
+    const targetUser = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    });
+
+    // Notify the user who was followed or unfollowed
+    await realtimeService.broadcastFollowToggled(
+      req.user.id,
+      targetUser.id,
+      result.following,
+      result.followerCount
+    );
 
     res.json({
       success: true,
@@ -73,7 +88,6 @@ const getFollowing = async (req, res, next) => {
 /**
  * GET /api/follows/suggested
  * Returns a list of suggested users to follow.
- * Requires auth so we can exclude already-followed users.
  */
 const getSuggestedUsers = async (req, res, next) => {
   try {

@@ -9,6 +9,7 @@ import { redisClient, connectRedis } from "./lib/redis.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import routes from "./routes/index.js";
 import dotenv from "dotenv";
+import { connectPubSub } from "./lib/redisPubSub.js";
 
 dotenv.config();
 
@@ -82,7 +83,8 @@ app.use(errorHandler);
 // SOCKET.IO
 // Attach Socket.io to the HTTP server after Express is set up.
 // ------------------------------------------------------------
-createSocketServer(httpServer);
+// Socket.io is initialized inside start() after Redis connects
+// so the async createServer call is handled there
 
 // ------------------------------------------------------------
 // START SERVER
@@ -94,6 +96,10 @@ const start = async () => {
   try {
     await connectRedis();
     console.log("Redis connected");
+
+    await connectPubSub();
+
+    await createSocketServer(httpServer);
 
     httpServer.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
