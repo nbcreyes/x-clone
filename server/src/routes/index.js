@@ -25,8 +25,8 @@ router.get("/health", (req, res) => {
 // Uncommented one by one as we build each feature.
 // ------------------------------------------------------------
 
-// import authRoutes from "./auth.js";
-// import postRoutes from "./posts.js";
+import authRoutes from "./auth.js";
+import postRoutes from "./posts.js";
 // import likeRoutes from "./likes.js";
 // import retweetRoutes from "./retweets.js";
 // import replyRoutes from "./replies.js";
@@ -36,8 +36,8 @@ router.get("/health", (req, res) => {
 // import profileRoutes from "./profile.js";
 // import uploadRoutes from "./upload.js";
 
-// router.use("/auth", authRoutes);
-// router.use("/posts", postRoutes);
+router.use("/auth", authRoutes);
+router.use("/posts", postRoutes);
 // router.use("/likes", likeRoutes);
 // router.use("/retweets", retweetRoutes);
 // router.use("/replies", replyRoutes);
