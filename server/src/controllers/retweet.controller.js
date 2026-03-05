@@ -1,14 +1,22 @@
 import retweetService from "../services/retweet.service.js";
+import realtimeService from "../services/realtime.service.js";
 
 /**
  * POST /api/retweets/:postId
- * Toggles a retweet on a post.
- * Returns the new retweet state and updated count.
+ * Toggles a retweet and broadcasts the update to all connected clients.
  */
 const toggleRetweet = async (req, res, next) => {
   try {
     const { postId } = req.params;
     const result = await retweetService.toggleRetweet(req.user.id, postId);
+
+    // Broadcast retweet toggle so all clients update the count in real time
+    await realtimeService.broadcastRetweetToggled(
+      postId,
+      req.user.id,
+      result.retweeted,
+      result.retweetCount
+    );
 
     res.json({
       success: true,
