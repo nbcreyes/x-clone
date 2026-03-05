@@ -1,30 +1,33 @@
 import { io } from "socket.io-client";
 
-// Create the Socket.io client instance.
-// autoConnect: false means we connect manually after the user is authenticated.
-// This prevents anonymous connections and ensures we can join the user room
-// immediately after connecting.
-const socket = io(import.meta.env.VITE_SOCKET_URL || "", {
+const socket = io({
   autoConnect: false,
   withCredentials: true,
+  transports: ["websocket", "polling"],
 });
 
 /**
  * Connects to the Socket.io server and joins the user's personal room.
- * Call this after the user logs in or on app load when user is authenticated.
+ * Called after login or on app load when session is confirmed.
  *
  * @param {string} userId
  */
 const connectSocket = (userId) => {
-  if (!socket.connected) {
-    socket.connect();
+  if (socket.connected) {
     socket.emit("join", userId);
+    return;
   }
+
+  socket.connect();
+
+  socket.once("connect", () => {
+    socket.emit("join", userId);
+  });
 };
 
 /**
  * Disconnects from the Socket.io server.
- * Call this after the user logs out.
+ * Called after logout.
  */
 const disconnectSocket = () => {
   if (socket.connected) {

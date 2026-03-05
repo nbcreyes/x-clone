@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNotifications, useMarkAllAsRead } from "@/hooks/useNotifications";
+import { useNotifications, useMarkAllAsRead, useMarkAsRead } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
 
 const notificationConfig = {
@@ -34,7 +34,10 @@ const notificationConfig = {
   },
 };
 
-const NotificationItem = ({ notification }) => {
+// NotificationItem is a pure presentational component.
+// It receives onRead as a prop from NotificationsPage where
+// the hook is correctly called.
+const NotificationItem = ({ notification, onRead }) => {
   const navigate = useNavigate();
   const config = notificationConfig[notification.type];
   if (!config) return null;
@@ -42,6 +45,9 @@ const NotificationItem = ({ notification }) => {
   const Icon = config.icon;
 
   const handleClick = () => {
+    if (!notification.read) {
+      onRead(notification.id);
+    }
     if (notification.post) {
       navigate(`/posts/${notification.post.id}`);
     } else if (notification.type === "FOLLOW") {
@@ -57,13 +63,11 @@ const NotificationItem = ({ notification }) => {
       )}
       onClick={handleClick}
     >
-      {/* Icon */}
       <div className={cn("p-2 rounded-full h-fit shrink-0", config.bg)}>
         <Icon className={cn("h-5 w-5", config.color)} />
       </div>
 
       <div className="flex-1 min-w-0">
-        {/* Sender avatar and action */}
         <div className="flex items-center gap-2 mb-1">
           <Avatar className="h-8 w-8">
             <AvatarImage src={notification.sender.avatarUrl} />
@@ -99,7 +103,6 @@ const NotificationItem = ({ notification }) => {
         </p>
       </div>
 
-      {/* Unread indicator */}
       {!notification.read && (
         <div className="shrink-0 mt-2">
           <div className="h-2 w-2 rounded-full bg-primary" />
@@ -110,15 +113,16 @@ const NotificationItem = ({ notification }) => {
 };
 
 const NotificationsPage = () => {
+  // Hooks are correctly called here at the top level of the component
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotifications();
   const markAllAsRead = useMarkAllAsRead();
+  const markAsRead = useMarkAsRead();
 
   const allNotifications = data?.pages?.flat() ?? [];
 
   return (
     <div>
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center justify-between">
         <h1 className="font-bold text-xl">Notifications</h1>
         {allNotifications.some((n) => !n.read) && (
@@ -158,6 +162,7 @@ const NotificationsPage = () => {
             <NotificationItem
               key={notification.id}
               notification={notification}
+              onRead={markAsRead.mutate}
             />
           ))}
 

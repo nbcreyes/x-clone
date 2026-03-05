@@ -3,9 +3,6 @@ import toast from "react-hot-toast";
 import api from "@/lib/axios";
 import useAuthStore from "@/store/authStore";
 
-/**
- * Fetches a user profile by username.
- */
 const useProfile = (username) => {
   return useQuery({
     queryKey: ["profile", username],
@@ -15,9 +12,6 @@ const useProfile = (username) => {
   });
 };
 
-/**
- * Updates the current user's profile.
- */
 const useUpdateProfile = () => {
   const queryClient = useQueryClient();
   const { user, setUser } = useAuthStore();
@@ -26,9 +20,9 @@ const useUpdateProfile = () => {
     mutationFn: (profileData) => api.patch("/profile", profileData),
     onSuccess: ({ data }) => {
       const updatedProfile = data.data.profile;
-      // Update the auth store with new profile data
       setUser({ ...user, ...updatedProfile });
       queryClient.invalidateQueries({ queryKey: ["profile", user.username] });
+      queryClient.refetchQueries({ queryKey: ["profile", user.username] });
       toast.success("Profile updated");
     },
     onError: (error) => {
@@ -37,9 +31,6 @@ const useUpdateProfile = () => {
   });
 };
 
-/**
- * Toggles following a user.
- */
 const useToggleFollow = () => {
   const queryClient = useQueryClient();
 
@@ -47,7 +38,9 @@ const useToggleFollow = () => {
     mutationFn: (username) => api.post(`/follows/${username}`),
     onSuccess: (_, username) => {
       queryClient.invalidateQueries({ queryKey: ["profile", username] });
+      queryClient.refetchQueries({ queryKey: ["profile", username] });
       queryClient.invalidateQueries({ queryKey: ["suggested"] });
+      queryClient.refetchQueries({ queryKey: ["suggested"] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -55,9 +48,6 @@ const useToggleFollow = () => {
   });
 };
 
-/**
- * Fetches suggested users to follow.
- */
 const useSuggestedUsers = () => {
   return useQuery({
     queryKey: ["suggested"],
