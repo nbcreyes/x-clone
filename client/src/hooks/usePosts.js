@@ -52,7 +52,9 @@ const useCreatePost = () => {
   return useMutation({
     mutationFn: (postData) => api.post("/posts", postData),
     onSuccess: () => {
+      // Invalidate and refetch the feed immediately
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.refetchQueries({ queryKey: ["feed"] });
       toast.success("Post created");
     },
     onError: (error) => {

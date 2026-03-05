@@ -2,9 +2,6 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import toast from "react-hot-toast";
 import api from "@/lib/axios";
 
-/**
- * Fetches paginated notifications for the current user.
- */
 const useNotifications = () => {
   return useInfiniteQuery({
     queryKey: ["notifications"],
@@ -24,28 +21,26 @@ const useNotifications = () => {
   });
 };
 
-/**
- * Fetches the unread notification count for the badge.
- */
 const useUnreadCount = () => {
   return useQuery({
     queryKey: ["notifications", "unread"],
     queryFn: () => api.get("/notifications/unread-count"),
     select: (data) => data.data.data.count,
-    refetchInterval: 30000, // refetch every 30 seconds as a fallback
+    refetchInterval: 30000,
   });
 };
 
-/**
- * Marks all notifications as read.
- */
 const useMarkAllAsRead = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: () => api.patch("/notifications/read-all"),
     onSuccess: () => {
+      // Reset unread count to zero immediately
+      queryClient.setQueryData(["notifications", "unread"], 0);
+      // Refetch notifications so read status updates in the list
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.refetchQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -53,4 +48,22 @@ const useMarkAllAsRead = () => {
   });
 };
 
-export { useNotifications, useUnreadCount, useMarkAllAsRead };
+const useMarkAsRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId) =>
+      api.patch(`/notifications/${notificationId}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.refetchQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread"] });
+      queryClient.refetchQueries({ queryKey: ["notifications", "unread"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+};
+
+export { useNotifications, useUnreadCount, useMarkAllAsRead, useMarkAsRead };

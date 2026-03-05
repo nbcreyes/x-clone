@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import PostCard from "@/components/shared/PostCard";
 import FollowButton from "@/components/shared/FollowButton";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
@@ -15,18 +20,20 @@ import { useUserPosts } from "@/hooks/usePosts";
 import useAuthStore from "@/store/authStore";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const TABS = ["Posts", "Likes"];
 
 const ProfilePage = () => {
   const { username } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, setUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState("Posts");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: profile, isLoading: isProfileLoading } = useProfile(username);
   const { data: postsData, isLoading: isPostsLoading } = useUserPosts(username);
@@ -58,9 +65,13 @@ const ProfilePage = () => {
     formData.append("image", file);
     setIsUploadingAvatar(true);
     try {
-      await api.post("/upload/avatar", formData, {
+      const { data } = await api.post("/upload/avatar", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      // Update auth store and refetch profile so avatar shows immediately
+      setUser({ ...currentUser, avatarUrl: data.data.user.avatarUrl });
+      queryClient.invalidateQueries({ queryKey: ["profile", username] });
+      queryClient.refetchQueries({ queryKey: ["profile", username] });
       toast.success("Avatar updated");
     } catch {
       toast.error("Failed to upload avatar");
@@ -76,9 +87,11 @@ const ProfilePage = () => {
     formData.append("image", file);
     setIsUploadingCover(true);
     try {
-      await api.post("/upload/cover", formData, {
+      const { data } = await api.post("/upload/cover", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      queryClient.invalidateQueries({ queryKey: ["profile", username] });
+      queryClient.refetchQueries({ queryKey: ["profile", username] });
       toast.success("Cover photo updated");
     } catch {
       toast.error("Failed to upload cover");
@@ -263,9 +276,7 @@ const ProfilePage = () => {
           <button
             key={tab}
             className={`flex-1 py-4 text-sm font-semibold transition-colors hover:bg-accent/50 relative ${
-              activeTab === tab
-                ? "text-foreground"
-                : "text-muted-foreground"
+              activeTab === tab ? "text-foreground" : "text-muted-foreground"
             }`}
             onClick={() => setActiveTab(tab)}
           >
@@ -311,7 +322,10 @@ const ProfilePage = () => {
           <DialogHeader>
             <DialogTitle>Edit profile</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="flex flex-col gap-4 mt-2">
+          <form
+            onSubmit={handleEditSubmit}
+            className="flex flex-col gap-4 mt-2"
+          >
             <div>
               <label className="text-sm font-medium mb-1 block">Name</label>
               <Input

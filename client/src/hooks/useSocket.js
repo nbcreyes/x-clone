@@ -17,27 +17,15 @@ const useSocket = () => {
     if (!user) return;
 
     // New post created - add to feed
-    const handleNewPost = ({ post }) => {
-      queryClient.setQueryData(["feed"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: [[post, ...(old.pages[0] ?? [])], ...old.pages.slice(1)],
-        };
-      });
+    const handleNewPost = () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.refetchQueries({ queryKey: ["feed"] });
     };
 
     // Post deleted - remove from feed
-    const handleDeletePost = ({ postId }) => {
-      queryClient.setQueryData(["feed"], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page) =>
-            page.filter((p) => p.id !== postId)
-          ),
-        };
-      });
+    const handleDeletePost = () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.refetchQueries({ queryKey: ["feed"] });
     };
 
     // Like toggled - update count in feed
@@ -49,9 +37,13 @@ const useSocket = () => {
           pages: old.pages.map((page) =>
             page.map((p) =>
               p.id === postId
-                ? { ...p, _count: { ...p._count, likes: likeCount }, isLiked: liked }
-                : p
-            )
+                ? {
+                    ...p,
+                    _count: { ...p._count, likes: likeCount },
+                    isLiked: liked,
+                  }
+                : p,
+            ),
           ),
         };
       });
@@ -72,8 +64,8 @@ const useSocket = () => {
                     _count: { ...p._count, retweets: retweetCount },
                     isRetweeted: retweeted,
                   }
-                : p
-            )
+                : p,
+            ),
           ),
         };
       });
@@ -87,8 +79,9 @@ const useSocket = () => {
 
     // New notification - update notification cache and unread count
     const handleNewNotification = ({ notification }) => {
-      queryClient.setQueryData(["notifications", "unread"], (old) =>
-        (old ?? 0) + 1
+      queryClient.setQueryData(
+        ["notifications", "unread"],
+        (old) => (old ?? 0) + 1,
       );
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     };
