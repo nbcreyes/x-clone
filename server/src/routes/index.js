@@ -32,7 +32,7 @@ import retweetRoutes from "./retweets.js";
 import replyRoutes from "./replies.js";
 import followRoutes from "./follows.js";
 import notificationRoutes from "./notifications.js";
-// import searchRoutes from "./search.js";
+import searchRoutes from "./search.js";
 // import profileRoutes from "./profile.js";
 // import uploadRoutes from "./upload.js";
 
@@ -43,7 +43,7 @@ router.use("/retweets", retweetRoutes);
 router.use("/replies", replyRoutes);
 router.use("/follows", followRoutes);
 router.use("/notifications", notificationRoutes);
-// router.use("/search", searchRoutes);
+router.use("/search", searchRoutes);
 // router.use("/profile", profileRoutes);
 // router.use("/upload", uploadRoutes);
 
