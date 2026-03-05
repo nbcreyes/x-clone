@@ -1,18 +1,18 @@
 import prisma from "../lib/prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
+import notificationService from "./notification.service.js";
+import realtimeService from "./realtime.service.js";
 
 /**
  * Toggles a like on a post.
- * If the user has already liked the post, the like is removed.
- * If the user has not liked the post, the like is added.
- * This toggle pattern avoids needing separate like/unlike endpoints.
+ * Creates a notification for the post author when liked.
+ * Removes the notification when unliked.
  *
  * @param {string} userId
  * @param {string} postId
  * @returns {object} - { liked: boolean, likeCount: number }
  */
 const toggleLike = async (userId, postId) => {
-  // Verify the post exists
   const post = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, authorId: true },
@@ -22,7 +22,6 @@ const toggleLike = async (userId, postId) => {
     throw new AppError("Post not found", 404);
   }
 
-  // Check if the like already exists
   const existingLike = await prisma.like.findUnique({
     where: {
       userId_postId: { userId, postId },
@@ -32,22 +31,30 @@ const toggleLike = async (userId, postId) => {
   let liked;
 
   if (existingLike) {
-    // Unlike - remove the like record
     await prisma.like.delete({
-      where: {
-        userId_postId: { userId, postId },
-      },
+      where: { userId_postId: { userId, postId } },
     });
     liked = false;
   } else {
-    // Like - create the like record
     await prisma.like.create({
       data: { userId, postId },
     });
     liked = true;
+
+    // Create a notification for the post author when someone likes their post
+    const notification = await notificationService.createNotification({
+      type: "LIKE",
+      recipientId: post.authorId,
+      senderId: userId,
+      postId,
+    });
+
+    // Send real-time notification to the post author
+    if (notification) {
+      await realtimeService.broadcastNotification(notification);
+    }
   }
 
-  // Get the updated like count
   const likeCount = await prisma.like.count({
     where: { postId },
   });

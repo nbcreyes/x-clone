@@ -1,17 +1,17 @@
 import prisma from "../lib/prisma.js";
 import { AppError } from "../middleware/errorHandler.js";
+import notificationService from "./notification.service.js";
+import realtimeService from "./realtime.service.js";
 
 /**
  * Toggles a retweet on a post.
- * If the user has already retweeted the post, the retweet is removed.
- * If the user has not retweeted the post, the retweet is added.
+ * Creates a notification for the post author when retweeted.
  *
  * @param {string} userId
  * @param {string} postId
  * @returns {object} - { retweeted: boolean, retweetCount: number }
  */
 const toggleRetweet = async (userId, postId) => {
-  // Verify the post exists
   const post = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, authorId: true },
@@ -21,7 +21,6 @@ const toggleRetweet = async (userId, postId) => {
     throw new AppError("Post not found", 404);
   }
 
-  // Check if the retweet already exists
   const existingRetweet = await prisma.retweet.findUnique({
     where: {
       userId_postId: { userId, postId },
@@ -31,22 +30,30 @@ const toggleRetweet = async (userId, postId) => {
   let retweeted;
 
   if (existingRetweet) {
-    // Un-retweet - remove the retweet record
     await prisma.retweet.delete({
-      where: {
-        userId_postId: { userId, postId },
-      },
+      where: { userId_postId: { userId, postId } },
     });
     retweeted = false;
   } else {
-    // Retweet - create the retweet record
     await prisma.retweet.create({
       data: { userId, postId },
     });
     retweeted = true;
+
+    // Create a notification for the post author when someone retweets their post
+    const notification = await notificationService.createNotification({
+      type: "RETWEET",
+      recipientId: post.authorId,
+      senderId: userId,
+      postId,
+    });
+
+    // Send real-time notification to the post author
+    if (notification) {
+      await realtimeService.broadcastNotification(notification);
+    }
   }
 
-  // Get the updated retweet count
   const retweetCount = await prisma.retweet.count({
     where: { postId },
   });
